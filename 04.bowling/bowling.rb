@@ -2,7 +2,6 @@
 
 score = ARGV[0]
 scores = score.split(',')
-
 shots = []
 frames = []
 scores.each do |s|
