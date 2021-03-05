@@ -1,3 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
 require 'optparse'
 require 'etc'
 
@@ -54,16 +57,17 @@ unless options['l'] # オプションなし
   slice_number = (dir_files.size % 3 == 0 ? dir_files.size / 3 : dir_files.size / 3 + 1)
   sliced_array = []
   dir_files.each_slice(slice_number) {|a| sliced_array << a }
+
   if sliced_array.last.size < slice_number
     (slice_number - sliced_array.last.size).times {sliced_array.last.push("")}
   end
-  transposed_array = sliced_array.transpose
 
-  transposed_array.each do |display|
-    default_string_size = 20
-    print display[0] + " " * (default_string_size - display[0].size)
-    print display[1] + " " * (default_string_size - display[1].size)
-    print display[2]
-    puts "\n"
+  str_array_with_blank = []
+  sliced_array.each do |str_array|
+    max_string = str_array.max_by(&:size).size
+    str_array_with_blank << str_array.each.map {|str| str + (" " * (max_string - str.size))}  
   end
+
+  transposed_array = str_array_with_blank.transpose
+  transposed_array.each {|display| puts display.join("    ")} 
 end
