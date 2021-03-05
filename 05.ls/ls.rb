@@ -4,70 +4,94 @@
 require 'optparse'
 require 'etc'
 
-options = ARGV.getopts('a', 'l', 'r')
-
-dir_files = options['a'] ? Dir.glob("*", File::FNM_DOTMATCH) : Dir.glob("*").sort
-dir_files = dir_files.reverse if options['r']
-
-def convert_to_filetype(ftype)
-  {
-    file: "-",
-    directory: "d",
-    characterSpecial: "c",
-    blockSpecial: "b",
-    fifo: "f",
-    link: "l",
-    socket: "s"
-  }[ftype.to_sym]
+def main
+  if catch_l_option
+    files.each do |file|
+      puts l_option_data(file).join('  ')
+    end
+  else
+    no_option
+  end
 end
 
-def select_to_mode(mode)
-  {
-    "0": "---",
-    "1": "--x",
-    "2": "-w-",
-    "3": "-wx",
-    "4": "r--",
-    "5": "r-x",
-    "6": "rw-",
-    "7": "rwx"
-  }[mode.to_sym]
+def options
+  ARGV.getopts('a', 'l', 'r')
+end
+
+def catch_l_option
+  options['l']
+end
+
+def catch_a_option
+  options['a']
+end
+
+def catch_r_option
+  options['r']
+end
+
+def files
+  files = catch_a_option ? Dir.glob('*', File::FNM_DOTMATCH) : Dir.glob('*').sort
+  catch_r_option ? files.reverse : files
 end
 
 def l_option_data(file)
   stat = File::Stat.new(file)
-  mode_number = sprintf("%o", stat.mode)
+  mode_number = format('%o', stat.mode)
   data = []
-  data << convert_to_filetype(stat.ftype) + select_to_mode(mode_number[-3]) + select_to_mode(mode_number[-2]) + select_to_mode(mode_number[-1])
+  data << convert_to_filetype(stat.ftype) + convert_to_mode(mode_number[-3]) + convert_to_mode(mode_number[-2]) + convert_to_mode(mode_number[-1])
   data << stat.nlink
   data << Etc.getpwuid(stat.uid).name
   data << Etc.getgrgid(stat.gid).name
   data << stat.size
-  data << stat.mtime.strftime("%-m %e %k:%M")
-  data << file 
+  data << stat.mtime.strftime('%-m %e %k:%M')
+  data << file
 end
 
-if options['l']
-  dir_files.each do |file|
-    puts l_option_data(file).join('  ')
-  end
+def convert_to_filetype(ftype)
+  {
+    file: '-',
+    directory: 'd',
+    characterSpecial: 'c',
+    blockSpecial: 'b',
+    fifo: 'f',
+    link: 'l',
+    socket: 's'
+  }[ftype.to_sym]
 end
 
-unless options['l'] # オプションなし 
-  slice_number = (dir_files.size % 3 == 0 ? dir_files.size / 3 : dir_files.size / 3 + 1)
-  sliced_array = []
-  dir_files.each_slice(slice_number) {|a| sliced_array << a }
+def convert_to_mode(mode)
+  {
+    '0': '---',
+    '1': '--x',
+    '2': '-w-',
+    '3': '-wx',
+    '4': 'r--',
+    '5': 'r-x',
+    '6': 'rw-',
+    '7': 'rwx'
+  }[mode.to_sym]
+end
 
-  if sliced_array.last.size < slice_number
-    (slice_number - sliced_array.last.size).times {sliced_array.last.push("")}
-  end
-
-  str_array_with_blank = []
-  sliced_array.each do |str_array|
-    max_string = str_array.max_by(&:size).size
-    str_array_with_blank << str_array.each.map {|str| str + (" " * (max_string - str.size))}  
-  end
-
+def no_option
+  (slice_number - sliced_array.last.size).times { sliced_array.last.push('') } if sliced_array.last.size < slice_number
   transposed_array = str_array_with_blank.transpose
-  transposed_array.each {|display| puts display.join("    ")} 
+  transposed_array.each { |display| puts display.join('    ') }
 end
+
+def slice_number
+  (files.size % 3).zero? ? files.size / 3 : files.size / 3 + 1
+end
+
+def sliced_array
+  files.each_slice(slice_number).map { |sliced_array| sliced_array }
+end
+
+def str_array_with_blank
+  sliced_array.map do |str_array|
+    max_string = str_array.max_by(&:size).size
+    str_array.each.map { |str| str + (' ' * (max_string - str.size)) }
+  end
+end
+
+main
