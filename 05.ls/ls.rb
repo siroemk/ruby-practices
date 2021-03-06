@@ -4,35 +4,17 @@
 require 'optparse'
 require 'etc'
 
-def main
-  if catch_l_option
-    files.each do |file|
-      puts l_option_data(file).join('  ')
+def main(options)
+  files = options['a'] ? Dir.glob('*', File::FNM_DOTMATCH) : Dir.glob('*').sort
+  files = files.reverse if options['r']
+
+  if options['l']
+    files.each do |x|
+      puts l_option_data(x).join('  ')
     end
   else
-    no_option
+    no_option(files)
   end
-end
-
-def options
-  ARGV.getopts('a', 'l', 'r')
-end
-
-def catch_l_option
-  options['l']
-end
-
-def catch_a_option
-  options['a']
-end
-
-def catch_r_option
-  options['r']
-end
-
-def files
-  files = catch_a_option ? Dir.glob('*', File::FNM_DOTMATCH) : Dir.glob('*').sort
-  catch_r_option ? files.reverse : files
 end
 
 def l_option_data(file)
@@ -52,11 +34,7 @@ def convert_to_filetype(ftype)
   {
     file: '-',
     directory: 'd',
-    characterSpecial: 'c',
-    blockSpecial: 'b',
-    fifo: 'f',
     link: 'l',
-    socket: 's'
   }[ftype.to_sym]
 end
 
@@ -73,25 +51,24 @@ def convert_to_mode(mode)
   }[mode.to_sym]
 end
 
-def no_option
-  (slice_number - sliced_array.last.size).times { sliced_array.last.push('') } if sliced_array.last.size < slice_number
-  transposed_array = str_array_with_blank.transpose
-  transposed_array.each { |display| puts display.join('    ') }
-end
+def no_option(x) # xは全てのファイル
+  slice_number = (x.size % 3 == 0 ? x.size / 3 : x.size / 3 + 1)
+  sliced_array = []
+  x.each_slice(slice_number) {|a| sliced_array << a }
 
-def slice_number
-  (files.size % 3).zero? ? files.size / 3 : files.size / 3 + 1
-end
-
-def sliced_array
-  files.each_slice(slice_number).map { |sliced_array| sliced_array }
-end
-
-def str_array_with_blank
-  sliced_array.map do |str_array|
-    max_string = str_array.max_by(&:size).size
-    str_array.each.map { |str| str + (' ' * (max_string - str.size)) }
+  if sliced_array.last.size < slice_number
+    (slice_number - sliced_array.last.size).times {sliced_array.last.push("")}
   end
+
+  str_array_with_blank = []
+  sliced_array.each do |str_array|
+    max_string = str_array.max_by(&:size).size
+    str_array_with_blank << str_array.each.map {|str| str + (" " * (max_string - str.size))}  
+  end
+
+  transposed_array = str_array_with_blank.transpose
+  transposed_array.each {|display| puts display.join("    ")} 
 end
 
-main
+options = ARGV.getopts('a', 'l', 'r')
+main(options)
