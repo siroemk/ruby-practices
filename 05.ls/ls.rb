@@ -9,24 +9,32 @@ def main(options)
   files = files.reverse if options['r']
 
   if options['l']
-    files.each do |x|
-      puts l_option_data(x).join('  ')
-    end
+    blocks = 0
+    files.each { |file| blocks += blocks(file) }
+    puts "total #{blocks}"
+    files.each { |file| puts l_option_data(file).join('  ') }
   else
     no_option(files)
   end
 end
 
+def stat(file)
+  File::Stat.new(file)
+end
+
+def blocks(file)
+  stat(file).blocks
+end
+
 def l_option_data(file)
-  stat = File::Stat.new(file)
-  mode_number = format('%o', stat.mode)
+  mode_number = format('%o', stat(file).mode)
   data = []
-  data << convert_to_filetype(stat.ftype) + convert_to_mode(mode_number[-3]) + convert_to_mode(mode_number[-2]) + convert_to_mode(mode_number[-1])
-  data << stat.nlink
-  data << Etc.getpwuid(stat.uid).name
-  data << Etc.getgrgid(stat.gid).name
-  data << stat.size
-  data << stat.mtime.strftime('%-m %e %k:%M')
+  data << convert_to_filetype(stat(file).ftype) + convert_to_mode(mode_number[-3]) + convert_to_mode(mode_number[-2]) + convert_to_mode(mode_number[-1])
+  data << stat(file).nlink
+  data << Etc.getpwuid(stat(file).uid).name
+  data << Etc.getgrgid(stat(file).gid).name
+  data << stat(file).size
+  data << stat(file).mtime.strftime('%-m %e %k:%M')
   data << file
 end
 
@@ -34,7 +42,7 @@ def convert_to_filetype(ftype)
   {
     file: '-',
     directory: 'd',
-    link: 'l',
+    link: 'l'
   }[ftype.to_sym]
 end
 
@@ -51,23 +59,25 @@ def convert_to_mode(mode)
   }[mode.to_sym]
 end
 
-def no_option(x) # xは全てのファイル
-  slice_number = (x.size % 3 == 0 ? x.size / 3 : x.size / 3 + 1)
+def no_option(files)
+  # 3列表示のためにeach_sliceで、3つの要素をもつ配列を作る。
+  slice_number = (files.size % 3).zero? ? files.size / 3 : files.size / 3 + 1
   sliced_array = []
-  x.each_slice(slice_number) {|a| sliced_array << a }
+  files.each_slice(slice_number) { |element| sliced_array << element }
 
-  if sliced_array.last.size < slice_number
-    (slice_number - sliced_array.last.size).times {sliced_array.last.push("")}
-  end
+  # transposeメソッドを使いたいので、配列内の要素の数を揃える。要素が足りない配列に空文字追加する。
+  third_array = sliced_array.last
+  (slice_number - third_array.size).times { third_array.push('') } if third_array.size < slice_number
 
-  str_array_with_blank = []
+  # 3列表示で文字を揃えたいので配列の中で一番長い文字列を基準に、空白を追加する。
+  array_with_blank = []
   sliced_array.each do |str_array|
     max_string = str_array.max_by(&:size).size
-    str_array_with_blank << str_array.each.map {|str| str + (" " * (max_string - str.size))}  
+    array_with_blank << str_array.each.map { |str| str + (' ' * (max_string - str.size)) }
   end
 
-  transposed_array = str_array_with_blank.transpose
-  transposed_array.each {|display| puts display.join("    ")} 
+  transposed_array = array_with_blank.transpose
+  transposed_array.each { |display| puts display.join('    ') }
 end
 
 options = ARGV.getopts('a', 'l', 'r')
