@@ -6,6 +6,13 @@ require 'optparse'
 options = ARGV.getopts('l')
 file_array = ARGV
 
+if ARGV[0] == nil
+  input = $stdin.readlines
+  print input.size.to_s.rjust(8)
+  print input.join.split(/\s+/).count.to_s.rjust(8)
+  puts input.join.bytesize.to_s.rjust(8)
+end
+
 total_lines = 0
 total_words = 0
 total_bytesize = 0
